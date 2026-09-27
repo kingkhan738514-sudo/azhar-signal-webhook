@@ -1,0 +1,197 @@
+//@version=6
+indicator("BTCUSD Delta Scanner (7-Pair Consensus)", overlay=true)
+
+// ============================================================
+// TRADING LOGIC - 7 FX PAIRS
+// Conditions for BUY and SELL signals on each pair
+// ============================================================
+
+f_signal(bbLen, bbMult, rsiLen, thresh, isBuy) => 
+    isBuy ? 
+        (low <= (ta.sma(close, bbLen) - bbMult * ta.stdev(close, bbLen)) and close > open and ta.rsi(close, rsiLen) < thresh) : 
+        (high >= (ta.sma(close, bbLen) + bbMult * ta.stdev(close, bbLen)) and close < open and ta.rsi(close, rsiLen) > thresh)
+
+// ============================================================
+// REQUEST SECURITY - Each pair on 5m timeframe
+// ============================================================
+
+audnzd_buy = request.security("FX:AUDNZD", "5", f_signal(25, 3.5, 10, 30, true), lookahead=barmerge.lookahead_off)
+audnzd_sell = request.security("FX:AUDNZD", "5", f_signal(25, 3.5, 10, 30, false), lookahead=barmerge.lookahead_off)
+
+nzdchf_buy = request.security("FX:NZDCHF", "5", f_signal(25, 3.5, 14, 30, true), lookahead=barmerge.lookahead_off)
+nzdchf_sell = request.security("FX:NZDCHF", "5", f_signal(25, 3.5, 14, 30, false), lookahead=barmerge.lookahead_off)
+
+nzdjpy_buy = request.security("FX:NZDJPY", "5", f_signal(25, 3.0, 7, 30, true), lookahead=barmerge.lookahead_off)
+nzdjpy_sell = request.security("FX:NZDJPY", "5", f_signal(25, 3.0, 7, 30, false), lookahead=barmerge.lookahead_off)
+
+eurjpy_buy = request.security("FX:EURJPY", "5", f_signal(30, 3.5, 7, 25, true), lookahead=barmerge.lookahead_off)
+eurjpy_sell = request.security("FX:EURJPY", "5", f_signal(30, 3.5, 7, 25, false), lookahead=barmerge.lookahead_off)
+
+eurnzd_buy = request.security("FX:EURNZD", "5", f_signal(25, 3.0, 7, 25, true), lookahead=barmerge.lookahead_off)
+eurnzd_sell = request.security("FX:EURNZD", "5", f_signal(25, 3.0, 7, 25, false), lookahead=barmerge.lookahead_off)
+
+gbpaud_buy = request.security("FX:GBPAUD", "5", f_signal(25, 3.0, 10, 25, true), lookahead=barmerge.lookahead_off)
+gbpaud_sell = request.security("FX:GBPAUD", "5", f_signal(25, 3.0, 10, 25, false), lookahead=barmerge.lookahead_off)
+
+cadjpy_buy = request.security("FX:CADJPY", "5", f_signal(25, 3.0, 7, 25, true), lookahead=barmerge.lookahead_off)
+cadjpy_sell = request.security("FX:CADJPY", "5", f_signal(25, 3.0, 7, 25, false), lookahead=barmerge.lookahead_off)
+
+// ============================================================
+// COUNT SIGNALS - Sum of BUY and SELL across all 7 pairs
+// ============================================================
+
+buy_count = (audnzd_buy ? 1 : 0) + (nzdchf_buy ? 1 : 0) + (nzdjpy_buy ? 1 : 0) + 
+            (eurjpy_buy ? 1 : 0) + (eurnzd_buy ? 1 : 0) + (gbpaud_buy ? 1 : 0) + (cadjpy_buy ? 1 : 0)
+
+sell_count = (audnzd_sell ? 1 : 0) + (nzdchf_sell ? 1 : 0) + (nzdjpy_sell ? 1 : 0) + 
+             (eurjpy_sell ? 1 : 0) + (eurnzd_sell ? 1 : 0) + (gbpaud_sell ? 1 : 0) + (cadjpy_sell ? 1 : 0)
+
+// ============================================================
+// CONSENSUS LOGIC - 4 or more pairs must agree
+// ============================================================
+
+btcusd_buy_signal = buy_count >= 4
+btcusd_sell_signal = sell_count >= 4
+
+// ============================================================
+// CHART DISPLAY - Status strings for each pair
+// ============================================================
+
+audnzd_stat = audnzd_buy ? "BUY" : audnzd_sell ? "SELL" : "-"
+nzdchf_stat = nzdchf_buy ? "BUY" : nzdchf_sell ? "SELL" : "-"
+nzdjpy_stat = nzdjpy_buy ? "BUY" : nzdjpy_sell ? "SELL" : "-"
+eurjpy_stat = eurjpy_buy ? "BUY" : eurjpy_sell ? "SELL" : "-"
+eurnzd_stat = eurnzd_buy ? "BUY" : eurnzd_sell ? "SELL" : "-"
+gbpaud_stat = gbpaud_buy ? "BUY" : gbpaud_sell ? "SELL" : "-"
+cadjpy_stat = cadjpy_buy ? "BUY" : cadjpy_sell ? "SELL" : "-"
+
+// ============================================================
+// COLOR CODING FOR STATUS TABLE
+// ============================================================
+
+audnzd_col = audnzd_buy ? color.green : audnzd_sell ? color.red : color.gray
+nzdchf_col = nzdchf_buy ? color.green : nzdchf_sell ? color.red : color.gray
+nzdjpy_col = nzdjpy_buy ? color.green : nzdjpy_sell ? color.red : color.gray
+eurjpy_col = eurjpy_buy ? color.green : eurjpy_sell ? color.red : color.gray
+eurnzd_col = eurnzd_buy ? color.green : eurnzd_sell ? color.red : color.gray
+gbpaud_col = gbpaud_buy ? color.green : gbpaud_sell ? color.red : color.gray
+cadjpy_col = cadjpy_buy ? color.green : cadjpy_sell ? color.red : color.gray
+
+consensus_col = btcusd_buy_signal ? color.lime : btcusd_sell_signal ? color.maroon : color.gray
+
+// ============================================================
+// PLOT SHAPES - Individual pair signals (small triangles)
+// ============================================================
+
+plotshape(audnzd_buy, title="AN Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="AN\nBUY")
+plotshape(audnzd_sell, title="AN Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="AN\nSELL")
+
+plotshape(nzdchf_buy, title="NC Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="NC\nBUY")
+plotshape(nzdchf_sell, title="NC Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="NC\nSELL")
+
+plotshape(nzdjpy_buy, title="NJ Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="NJ\nBUY")
+plotshape(nzdjpy_sell, title="NJ Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="NJ\nSELL")
+
+plotshape(eurjpy_buy, title="EJ Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="EJ\nBUY")
+plotshape(eurjpy_sell, title="EJ Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="EJ\nSELL")
+
+plotshape(eurnzd_buy, title="EN Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="EN\nBUY")
+plotshape(eurnzd_sell, title="EN Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="EN\nSELL")
+
+plotshape(gbpaud_buy, title="GA Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="GA\nBUY")
+plotshape(gbpaud_sell, title="GA Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="GA\nSELL")
+
+plotshape(cadjpy_buy, title="CJ Buy", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small, text="CJ\nBUY")
+plotshape(cadjpy_sell, title="CJ Sell", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small, text="CJ\nSELL")
+
+// ============================================================
+// PLOT SHAPES - BTCUSD Consensus (large triangles, only on confirmed bar)
+// ============================================================
+
+plotshape(btcusd_buy_signal and barstate.isconfirmed, 
+          title="BTCUSD BUY", 
+          style=shape.triangleup, 
+          location=location.belowbar, 
+          color=color.lime, 
+          size=size.large, 
+          text="DELTA\nBUY")
+
+plotshape(btcusd_sell_signal and barstate.isconfirmed, 
+          title="BTCUSD SELL", 
+          style=shape.triangledown, 
+          location=location.abovebar, 
+          color=color.maroon, 
+          size=size.large, 
+          text="DELTA\nSELL")
+
+// ============================================================
+// STATUS TABLE - Display all 7 pairs + BTCUSD consensus
+// ============================================================
+
+var table statusTable = table.new(
+    position.top_right, 
+    2, 
+    9, 
+    bgcolor=color.new(color.black, 10), 
+    border_width=1
+)
+
+if barstate.islast
+    table.cell(statusTable, 0, 0, "Pair", text_color=color.white, bgcolor=color.gray)
+if barstate.islast
+    table.cell(statusTable, 1, 0, "Status", text_color=color.white, bgcolor=color.gray)
+
+if barstate.islast
+    table.cell(statusTable, 0, 1, "AUD/NZD", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 1, audnzd_stat, text_color=audnzd_col)
+
+if barstate.islast
+    table.cell(statusTable, 0, 2, "NZD/CHF", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 2, nzdchf_stat, text_color=nzdchf_col)
+
+if barstate.islast
+    table.cell(statusTable, 0, 3, "NZD/JPY", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 3, nzdjpy_stat, text_color=nzdjpy_col)
+
+if barstate.islast
+    table.cell(statusTable, 0, 4, "EUR/JPY", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 4, eurjpy_stat, text_color=eurjpy_col)
+
+if barstate.islast
+    table.cell(statusTable, 0, 5, "EUR/NZD", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 5, eurnzd_stat, text_color=eurnzd_col)
+
+if barstate.islast
+    table.cell(statusTable, 0, 6, "GBP/AUD", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 6, gbpaud_stat, text_color=gbpaud_col)
+
+if barstate.islast
+    table.cell(statusTable, 0, 7, "CAD/JPY", text_color=color.white)
+if barstate.islast
+    table.cell(statusTable, 1, 7, cadjpy_stat, text_color=cadjpy_col)
+
+// Consensus row - BTCUSD
+if barstate.islast
+    table.cell(statusTable, 0, 8, "BTCUSD (Consensus)", text_color=color.white, bgcolor=color.gray)
+if barstate.islast
+    consensus_stat = btcusd_buy_signal ? "BUY (" + str.tostring(buy_count) + "/7)" : btcusd_sell_signal ? "SELL (" + str.tostring(sell_count) + "/7)" : "-"
+    table.cell(statusTable, 1, 8, consensus_stat, text_color=consensus_col, bgcolor=color.new(color.black, 30))
+
+// ============================================================
+// DELTA EXCHANGE WEBHOOK ALERTS
+// Send BTCUSD signals only when 4+ pairs reach consensus
+// JSON format: {"exchange":"DELTA","pair":"BTCUSD","signal":"BUY/SELL","timeframe":"5m","secret":"YOUR_WEBHOOK_SECRET"}
+// Fires once per confirmed bar close
+// ============================================================
+
+if btcusd_buy_signal and barstate.isconfirmed
+    alert('{"exchange":"DELTA","pair":"BTCUSD","signal":"BUY","timeframe":"5m","secret":"YOUR_WEBHOOK_SECRET"}', alert.freq_once_per_bar_close)
+
+if btcusd_sell_signal and barstate.isconfirmed
+    alert('{"exchange":"DELTA","pair":"BTCUSD","signal":"SELL","timeframe":"5m","secret":"YOUR_WEBHOOK_SECRET"}', alert.freq_once_per_bar_close)
